@@ -1,0 +1,5 @@
+---
+description: Core CekFakta project policy, applies to every agent task.
+alwaysApply: true
+---
+Read AGENTS.md and TASKS.md. Implement one task at a time. All ungrounded or unsupported claims get `unverified`, never a manufactured verdict. Always keep reports draft until an authorized admin approves publication. Test and report actual results.

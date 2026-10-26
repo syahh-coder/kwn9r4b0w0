@@ -1,0 +1,18 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CekFakta: Dev Server",
+      "type": "shell",
+      "command": "npm run dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "CekFakta: Full Checks",
+      "type": "shell",
+      "command": "npm run lint && npm run typecheck && npm test && npm run build",
+      "problemMatcher": []
+    }
+  ]
+}

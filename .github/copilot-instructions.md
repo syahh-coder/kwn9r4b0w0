@@ -1,0 +1,1 @@
+Follow the rules in AGENTS.md. Read AI.md, TASKS.md, docs/03_VALIDATION_POLICY.md before changing application behavior. Public claim results require evidence, admin-reviewed publishing, and honest tests.

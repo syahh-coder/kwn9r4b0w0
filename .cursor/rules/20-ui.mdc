@@ -1,0 +1,8 @@
+---
+description: UI behavior and accessibility for CekFakta pages.
+globs:
+  - "src/app/**/*.tsx"
+  - "src/app/**/*.css"
+alwaysApply: false
+---
+Use Indonesian copy, accessible forms, loading, empty and error states, responsive layout and plain verdict labels. Clearly mark `unverified` as inconclusive. Never imply demo or placeholder data are verified facts.

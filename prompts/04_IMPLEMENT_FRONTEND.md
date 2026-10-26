@@ -1,0 +1,1 @@
+Act as frontend owner. Read docs/08_UI_SCREENS.md and UX deliverables. Implement accessible responsive pages, clear loading/error/empty states and badge text + icon. Home/check/report are public; admin dashboard must be gated by real server Auth. Do NOT show unreviewed sample report as fact. Keep API client types in sync with docs/05_API_CONTRACT.md. Include screenshots/tests.

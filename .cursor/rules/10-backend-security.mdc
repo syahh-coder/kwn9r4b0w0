@@ -1,0 +1,9 @@
+---
+description: Security rules for API routes, DB queries, fact-checking data and external URL fetches.
+globs:
+  - "src/app/api/**/*.ts"
+  - "src/lib/**/*.ts"
+  - "supabase/**/*.sql"
+alwaysApply: false
+---
+Do server-side input validation, rate limiting and auth checks. Do not expose secrets. Never fetch arbitrary URLs without SSRF protections (DNS, redirects, private ranges, limits). Preserve source links, dates and traceability. Enforce RLS on DB and verify admin role server-side.

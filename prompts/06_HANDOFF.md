@@ -1,0 +1,1 @@
+Summarize status without fabrication: task IDs finished, files changed, command outputs, remaining TODOs, environment variables required (names only), critical risks, and next testable vertical slice. Update TASKS.md and CHANGELOG.md.
