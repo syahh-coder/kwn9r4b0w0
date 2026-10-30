@@ -11,6 +11,11 @@ const apiKey = process.env.GEMINI_API_KEY;
 async function generate(request: object) {
   const client = new GoogleGenAI({ apiKey, vertexai: false, httpOptions: { timeout: 15000, retryOptions: { attempts: 1 } } });
   const response = await client.models.generateContent(request as GenerateContentParameters);
+  const finish = response.candidates?.[0]?.finishReason;
+  if (finish && finish !== "STOP") {
+    const reason = ["MAX_TOKENS", "SAFETY", "RECITATION", "OTHER"].includes(finish) ? finish.toLowerCase() : "unavailable";
+    console.warn(`cekfakta_check:analysis:${reason}`);
+  }
   return { text: response.text };
 }
 // No implicit model fallback: model availability/quota must be checked explicitly.
@@ -22,6 +27,7 @@ export const analyzeClaimFromMetadata = createEvidenceAnalyzer({
 
 export const extractCandidateClaim = createClaimExtractor({
   enabled: process.env.GEMINI_ANALYSIS_ENABLED === "true", apiKey, model: process.env.GEMINI_MODEL, generate,
+  includeSearchQuery: process.env.WEB_SEARCH_ENABLED === "true",
 });
 export const compareClaimWithEvidence = createEvidenceComparator({
   enabled: process.env.GEMINI_ANALYSIS_ENABLED === "true", apiKey, model: process.env.GEMINI_MODEL, generate,

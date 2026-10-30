@@ -2,9 +2,13 @@
 
 ## Status akhir
 
-**DONE untuk modul AI server.** Model `gemini-3.5-flash-lite` berhasil menjalankan acceptance live pada fixture fiktif: ekstraksi klaim, JSON analysis/citation allowlist, serta perbandingan isi sumber dengan quote provenance. BE-03 kini menyediakan penyimpanan draft atomik serta CRUD/approval admin; formulir publik belum terhubung.
+DATA-04 selesai lokal, 31 Oktober 2026: mode WEB_SEARCH_ENABLED menambah query Gemini, retrieval Tavily Search/Extract/safe-fetch dan comparator isi sumber di check/admin analyze. Model wajib satu hasil per dokumen dan memilih quoteSentenceId; server mengambil satu kalimat asli unik 20–1000 karakter, memvalidasi hash/span dan menyimpan draft unverified. Model tidak mengetik ulang kutipan. Tidak ada sumber/quote yang dipaksakan valid atau auto-publish. Verify 116 tests dan live PISA 3 isi sumber/3 quote/draft/cache/browser PASS; sumber primer tidak dijamin. Detail/status/batas: [DATA-04](22_TAVILY_EVIDENCE.md), TASKS.md dan docs/09. Paragraf INT-01 di bawah merekam keadaan sebelum mode web.
 
-Provider DATA-03 sudah lulus probe live HTTP 200 dengan 5 kandidat. Pengguna melaporkan kuota 300 request/menit. BE-03 menyediakan endpoint analisis admin dengan sink draft/provenance; sink teruji lokal tanpa panggilan provider baru, sedangkan endpoint analisis live belum diuji pada sesi BE-03. INT-01 tetap menangani penyambungan publik serta rate limit/cache/budget bersama. `/api/check` tetap validation-only.
+Pembaruan INT-01, 31 Oktober 2026: /api/check dan form publik kini terhubung ke ekstraksi/pencarian/analisis metadata + draft/provenance atomik, dengan budget/rate/cache/lease bersama. Analisis lokal dan URL lokal sudah diaktifkan setelah uji, final tetap unverified/draft. Probe teks nyata lulus dengan 3 kandidat dan draft/cache; URL contoh berhenti no_factual_claim tanpa draft. Full-text comparator bukan otomatis aktif pada alur ini. Detail terkini: docs/19_CHECK_INTEGRATION.md; keterangan validation-only dalam riwayat berikut sudah lewat.
+
+**DONE untuk modul AI server.** Model `gemini-3.5-flash-lite` berhasil menjalankan acceptance live pada fixture fiktif: ekstraksi klaim, JSON analysis/citation allowlist, serta perbandingan isi sumber dengan quote provenance. BE-03 menyediakan CRUD/approval; INT-01 kini menghubungkan formulir publik ke analisis metadata dan draft atomik.
+
+Provider DATA-03 sebelumnya lulus probe live HTTP 200 dengan 5 kandidat; pengguna melaporkan kuota 300 request/menit. INT-01 menambahkan shared rate/budget/cache/lease, worker draft dan endpoint publik terintegrasi; probe teks mendapat 3 kandidat serta draft/cache. Endpoint admin analyze kini memakai service yang sama setelah auth, namun probe live sesi INT-01 dilakukan lewat /api/check, bukan mengklaim endpoint admin live terpisah sudah diuji.
 
 ## Modul dan batas kepercayaan
 

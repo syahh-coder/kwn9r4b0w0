@@ -1,5 +1,9 @@
 # Database + RLS design
 
+## Pembaruan DATA-04 — 31 Oktober 2026
+
+Migrasi 0006/0007 lokal menambah hash/span/kutipan web, constraint provider/evidence kind, preview cache dan reserve_web_search service-only dengan token lease. Cadangan 2 kredit/check, maksimum 20/hari/namespace; paling banyak 10 check web baru. Implementasi atomik lama complete_check dipindah private, tidak dapat dipanggil app roles, lalu dibungkus RPC service-only yang menambah preview sumber. RLS/editorial approval/audit tetap berlaku; tidak reset akun/data atau memigrasikan cloud. Skema dan uji: [DATA-04](22_TAVILY_EVIDENCE.md), [test plan](09_TEST_PLAN.md).
+
 ## Pembaruan BE-03 — 24 Oktober 2026
 
 Migrasi `0004_admin_reports.sql` sudah diterapkan pada Supabase lokal tanpa reset: `save_report_draft` menyimpan report/catatan/sumber atomik, mempertahankan provenance kandidat saat sumber editorial diganti; `admin_report_action` mengunci baris dan memeriksa versi, transisi serta persetujuan publikasi. Keduanya SECURITY INVOKER, authenticated/admin saja, tidak memberi akses tambahan ke anon/service_role. Trigger guard dan audit lama tetap aktif. Penghapusan aplikasi berupa arsip `rejected`, bisa dikembalikan ke draft. Tidak ada migrasi cloud. Pengujian SQL serta HTTP Auth/PostgREST aktual lulus; detail penggunaan/batas pada [BE-03](15_ADMIN_REPORTS.md).

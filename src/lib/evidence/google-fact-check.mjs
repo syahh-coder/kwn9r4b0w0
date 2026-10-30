@@ -74,7 +74,7 @@ async function boundedJson(response) {
   } finally { void reader.cancel().catch(() => undefined); }
 }
 
-/** Server provider, deliberately not connected to a public route until launch gates pass.
+/** Server provider; the check service calls it after shared quota/lease reservation.
  * fetchImpl injection is for tests only; endpoint is fixed and redirects are rejected.
  * Cache/in-flight dedupe is per process, NOT a distributed quota/rate limit.
  * @param {{apiKey?: string, enabled?: boolean, fetchImpl?: typeof fetch, now?: () => number}} [options]

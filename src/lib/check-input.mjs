@@ -1,4 +1,4 @@
-/** Lightweight input shape validation for the scaffolding phase ONLY.
+/** Shared input shape validation; network, quota and persistence live on the server.
  * This does NOT fetch URLs or determine whether a claim is true/false.
  * NEVER treat URL syntax screening here as full SSRF protection.
  */
@@ -11,6 +11,7 @@ export function parseCheckInput(payload) {
     return { ok: false, reason: "Format data tidak valid." };
   }
   const obj = /** @type {Record<string, unknown>} */ (payload);
+  if (Object.keys(obj).some(key => !["inputType", "input", "category"].includes(key))) return { ok: false, reason: "Kolom input tidak dikenali." };
   if (typeof obj.category !== "string" || !CATEGORIES.includes(obj.category)) {
     return { ok: false, reason: "Pilih topik yang tersedia." };
   }

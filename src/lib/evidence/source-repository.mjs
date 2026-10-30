@@ -1,4 +1,5 @@
 import { normalizeFactCheckResponse } from "./google-fact-check.mjs";
+import { webSourcePayload } from "./tavily-search.mjs";
 
 export class SourcePersistenceError extends Error {
   constructor(code) { super(code); this.name = "SourcePersistenceError"; this.code = code; }
@@ -9,6 +10,10 @@ export function sourcePayload(candidates) {
   if (!Array.isArray(candidates) || candidates.length > 20) throw new SourcePersistenceError("invalid_candidates");
   const rows = new Map();
   for (const candidate of candidates) {
+    if (candidate?.provider === "tavily") {
+      try { const row = webSourcePayload(candidate); rows.set(row.candidate_key, row); continue; }
+      catch { throw new SourcePersistenceError("invalid_candidates"); }
+    }
     if (!candidate || candidate.provider !== "google_fact_check" || candidate.evidenceKind !== "claim_review_metadata" || candidate.contextVerified !== false
       || typeof candidate.retrievedAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.test(candidate.retrievedAt) || !Number.isFinite(Date.parse(candidate.retrievedAt))) throw new SourcePersistenceError("invalid_candidates");
     const normalized = normalizeFactCheckResponse({ claims: [{

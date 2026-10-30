@@ -19,14 +19,37 @@ export function inspectCandidateContext(claim, candidate) {
   return { evidenceId: candidate.id, flags, contextVerified: false, requiresReview: true };
 }
 
-/** Dependency-injected internal flow. No database writes or publication authority. */
-export function createClaimReviewPipeline({ extract, search, analyze, loadDocuments = undefined, compare = undefined }) {
-  return async function review(input) {
+/** Dependency-injected internal flow. No database writes or publication authority.
+ * @param {{extract: (...args: any[]) => Promise<any>, search: (...args: any[]) => Promise<any>, analyze: (...args: any[]) => Promise<any>, loadDocuments?: (...args: any[]) => Promise<any>, compare?: (...args: any[]) => Promise<any>, webSearch?: (...args: any[]) => Promise<any>}} options */
+export function createClaimReviewPipeline({ extract, search, analyze, loadDocuments = undefined, compare = undefined, webSearch = undefined }) {
+  return async function review(input, context = {}) {
     try {
       const extraction = await extract(input);
       if (extraction.status !== "extracted") return { status: extraction.status, stage: "extraction", draft: null };
-      const result = await search(extraction.claim.text);
+      let result = await search(extraction.claim.text);
       if (!["available", "no_candidates"].includes(result.status)) return { status: "evidence_unavailable", stage: "retrieval", draft: null };
+      if (webSearch) {
+        if (typeof context.reserveWebSearch !== "function" || !(await context.reserveWebSearch())) return { status: "web_search_unavailable", draft: null };
+        const indexed = result;
+        result = await webSearch(extraction.claim.text, extraction.claim.searchQuery);
+        if (!["available", "no_candidates"].includes(result.status)) return { status: "web_search_unavailable", draft: null };
+        if (result.status === "no_candidates" && indexed.status === "available") result = indexed;
+        if (result.documents?.length && compare) {
+          const compared = await compare({ claim: extraction.claim.text, category: extraction.claim.category, sources: result.candidates, documents: result.documents });
+          if (compared.status !== "compared") return { status: compared.status, stage: "comparison", draft: null };
+          const sources = result.candidates.map(source => { const comparison = compared.comparisons.find(item => item.evidenceId === source.id);
+            return comparison?.provenance ? { ...source, excerpt: comparison.quote, quoteSpan: comparison.provenance.span } : source; });
+          const relations = { supports: "mendukung klaim menurut usulan model", contradicts: "bertentangan dengan klaim menurut usulan model", unclear: "belum menunjukkan hubungan bukti yang jelas" };
+          return { status: "draft_ready", analysisAvailable: true, sources, extractedClaim: extraction.claim, evidenceComparison: compared,
+            draft: { claim: extraction.claim.text, category: extraction.claim.category, verdict: "unverified", reviewStatus: "draft",
+              summary: "Pencarian web dan pembandingan isi sumber selesai. Kesimpulan masih memerlukan tinjauan admin.",
+              reason: compared.comparisons.map(item => `Sumber ${result.candidates.findIndex(source => source.id === item.evidenceId) + 1}: ${relations[item.relation]}.`).join(" ") + " Hubungan bukti serta kecocokan waktu, lokasi dan konteks belum disahkan admin.",
+              evidenceIds: compared.comparisons.filter(item => item.provenance).map(item => item.evidenceId),
+              limitations: ["Kutipan dicocokkan dengan teks yang dikembalikan penyedia, bukan jaminan kebenaran atau kecocokan konteks.",
+                "Teks sumber dibatasi 12.000 karakter; tanggal yang tidak tersedia tidak diperkirakan.",
+                ...(result.documents.length < result.candidates.length ? ["Sebagian tautan hanya menyediakan metadata; sumber tanpa isi tidak dipakai untuk pembandingan kutipan."] : [])] } };
+        }
+      }
       let comparison = { status: "no_evidence_text", comparisons: [] };
       if (result.candidates.length && loadDocuments && compare) {
         const documents = await loadDocuments(result.candidates);

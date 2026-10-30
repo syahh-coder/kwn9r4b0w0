@@ -8,6 +8,9 @@ import nextEnv from "@next/env";
 import { normalizeFactCheckResponse } from "../src/lib/evidence/google-fact-check.mjs";
 import { persistReportCandidates, sourcePayload } from "../src/lib/evidence/source-repository.mjs";
 import { saveAnalysisDraft } from "../src/lib/reports/analysis-draft.mjs";
+import { buildAnalysisDocument } from "../src/lib/reports/analysis-draft.mjs";
+import { checkHashes } from "../src/lib/check-service.mjs";
+import { parseCheckResult } from "../src/lib/check-result.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 let status;
@@ -29,6 +32,11 @@ const reportId = randomUUID();
 const editorialReportIds = [];
 const password = `Test-${randomUUID()}-aA9!`;
 const prefix = randomUUID();
+const checkScope = process.env.CEKFAKTA_CHECK_TEST_SCOPE;
+if (checkScope) {
+  assert.match(checkScope, /^itest_[a-z0-9_]{1,50}$/);
+  assert.equal(process.env.CHECK_BUDGET_NAMESPACE, checkScope, "Namespace server/tes INT-01 harus sama.");
+}
 function sql(statement) {
   return execFileSync("docker", ["exec", "-i", "supabase_db_02_CEKFAKTA_AGENTIC_WORKSPACE", "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-At"], { input: statement, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] });
 }
@@ -94,6 +102,10 @@ try {
   assert.equal((await api("/api/admin/session")).status, 401);
   step = "cross-origin login rejection";
   assert.equal((await api("/api/admin/login", loginRequest(admin.email, "https://evil.example"))).status, 403);
+  step = "login JSON MIME, byte cap and malformed UTF-8";
+  assert.equal((await api("/api/admin/login", { method: "POST", headers: { origin: base, "Content-Type": "application/jsonp" }, body: "{}" })).status, 415);
+  assert.equal((await api("/api/admin/login", { method: "POST", headers: { origin: base, "Content-Type": "application/json" }, body: "x".repeat(4097) })).status, 413);
+  assert.equal((await api("/api/admin/login", { method: "POST", headers: { origin: base, "Content-Type": "application/json" }, body: new Uint8Array([255]) })).status, 400);
   step = "incorrect password rejection";
   assert.equal((await api("/api/admin/login", { ...loginRequest(admin.email), body: JSON.stringify({ email: admin.email, password: "wrong-password" }) })).status, 401);
   step = "non-admin login rejection";
@@ -115,7 +127,7 @@ try {
   assert.equal(dashboard.status, 200); assert.match(await dashboard.text(), /Dashboard Admin/);
   step = "BE-03 guest/non-admin and CSRF boundaries";
   const mutation = (body, method = "POST", origin = base) => ({ method, headers: { "Content-Type": "application/json", origin }, body: JSON.stringify(body) });
-  const document = { claim: "Klaim fiktif khusus pengujian HTTP editorial lokal.", category: "education", verdict: "unverified", summary: "Ringkasan fixture editorial.", reasoning: "Bukan pemeriksaan fakta nyata.", adminNotes: "Catatan privat editorial.", sources: [{ url: "https://example.org/editorial-fixture", title: "Sumber fixture", excerpt: "Kutipan fiktif.", publishedAt: null }] };
+  const document = { claim: `${prefix} Klaim fiktif khusus pengujian HTTP editorial lokal 100%_literal.`, category: "education", verdict: "unverified", summary: "Ringkasan fixture editorial.", reasoning: "Bukan pemeriksaan fakta nyata.", adminNotes: "Catatan privat editorial.", sources: [{ url: "https://example.org/editorial-fixture", title: "Sumber fixture", excerpt: "Kutipan fiktif.", publishedAt: null }] };
   assert.equal((await api("/api/admin/reports")).status, 401);
   assert.equal((await api("/api/admin/reports", mutation(document))).status, 401);
   assert.equal((await api("/api/admin/reports", {}, memberCookie)).status, 403);
@@ -144,6 +156,10 @@ try {
   assert.equal(detail.report.report_sources.length, 1);
   assert.ok(detail.audit.length >= 3);
   assert.equal((await guest.from("reports").select("id").eq("id", editorial.id)).data.length, 0);
+  step = "FE-02 draft hidden even with admin cookies on public routes";
+  assert.equal((await api(`/api/reports/${editorial.id}`)).status, 404);
+  assert.equal((await api(`/api/reports/${editorial.id}`, {}, adminCookie)).status, 404);
+  assert.equal((await api(`/reports/${editorial.id}`, {}, adminCookie)).status, 404);
   assert.equal((await api(`/admin/${editorial.id}`, {}, adminCookie)).status, 200);
   assert.equal((await api("/admin/new", {}, adminCookie)).status, 200);
   assert.equal((await api("/api/admin/reports?status=other", {}, adminCookie)).status, 400);
@@ -162,10 +178,39 @@ try {
   await transition("publish");
   assert.equal(editorial.published_by, admin.id);
   assert.equal((await guest.from("reports").select("id").eq("id", editorial.id)).data.length, 1);
+  step = "FE-02 published API, SSR detail, source and private-data exclusion";
+  const publicResponse = await api(`/api/reports/${editorial.id}`);
+  assert.equal(publicResponse.status, 200); assert.match(publicResponse.headers.get("cache-control"), /no-store/);
+  const publicReport = (await publicResponse.json()).report;
+  assert.equal(publicReport.id, editorial.id); assert.equal(publicReport.verdict, "unverified");
+  assert.equal(publicReport.sources[0].url, document.sources[0].url);
+  assert.equal(publicReport.sources[0].publishedAt, null);
+  assert.equal("published_by" in publicReport, false);
+  assert.doesNotMatch(JSON.stringify(publicReport), /report_private|admin_notes|report_audit|actor_id|Catatan privat editorial/);
+  const publicPage = await api(`/reports/${editorial.id}`);
+  assert.equal(publicPage.status, 200);
+  const publicHtml = await publicPage.text();
+  assert.ok(publicHtml.includes(document.claim)); assert.ok(publicHtml.includes(document.sources[0].title));
+  assert.match(publicHtml, /Belum dapat diverifikasi/);
+  assert.doesNotMatch(publicHtml, /Catatan privat editorial|report_private|admin_notes|report_audit/);
+  const search = await api(`/api/reports?q=${encodeURIComponent(prefix)}&category=education&verdict=unverified`);
+  assert.equal(search.status, 200); assert.equal((await search.json()).total, 1);
+  assert.equal((await (await api(`/api/reports?q=${encodeURIComponent(`${prefix} does not exist`)}`)).json()).total, 0);
+  assert.equal((await (await api(`/api/reports?q=${encodeURIComponent("100%_literal")}`)).json()).reports.some(row => row.id === editorial.id), true);
+  assert.equal((await api("/api/reports?status=draft")).status, 400);
+  assert.equal((await api("/api/reports?page=0")).status, 400);
+  assert.equal((await api("/api/reports?verdict=other")).status, 400);
+  assert.equal((await api("/api/reports/missing")).status, 404);
+  assert.equal((await api(`/api/reports/${randomUUID()}`)).status, 404);
   assert.equal((await api(reportPath, mutation({ ...document, expectedUpdatedAt: editorial.updated_at }, "PATCH"), adminCookie)).status, 409);
   await transition("retract");
   assert.equal((await guest.from("reports").select("id").eq("id", editorial.id)).data.length, 0);
+  step = "FE-02 retraction immediately disappears from fresh public requests";
+  assert.equal((await api(`/api/reports/${editorial.id}`)).status, 404);
+  assert.equal((await api(`/reports/${editorial.id}`)).status, 404);
+  assert.equal((await (await api(`/api/reports?q=${encodeURIComponent(prefix)}`)).json()).total, 0);
   await transition("reject", "DELETE"); assert.equal(editorial.review_status, "rejected");
+  assert.equal((await api(`/api/reports/${editorial.id}`)).status, 404);
   await transition("restore"); assert.equal(editorial.review_status, "draft");
   step = "BE-03 policy-guarded analysis persistence using fictional injected result";
   const aiReport = await saveAnalysisDraft(adminDb, { status: "draft_ready", sources: candidates, draft: {
@@ -180,6 +225,67 @@ try {
   const retained = (await (await api(`/api/admin/reports/${aiReport.id}`, {}, adminCookie)).json()).report;
   assert.equal(retained.report_sources.filter(source => source.candidate_key).length, 1);
   assert.equal(retained.report_sources.filter(source => !source.candidate_key).length, 1);
+  step = "FE-02 deterministic public pagination and filters with disposable published fixtures";
+  const paginationQuery = `PaginationFixture-${prefix}`;
+  const paginationRows = Array.from({ length: 13 }, (_, index) => ({ id: randomUUID(), claim: `${paginationQuery} Klaim fiktif halaman ${index + 1}.`, input_type: "text", category: index < 2 ? "politics" : "education", summary: "Fixture pagination, bukan fakta.", reasoning: "Pengujian lokal sementara." }));
+  editorialReportIds.push(...paginationRows.map(row => uuid(row.id)));
+  assert.equal((await adminDb.from("reports").insert(paginationRows)).error, null);
+  assert.equal((await adminDb.from("report_sources").insert(paginationRows.map(row => ({ report_id: row.id, source_url: "https://example.org/pagination-fixture", source_title: "Sumber fiktif pagination" })))).error, null);
+  assert.equal((await adminDb.from("reports").update({ review_status: "published" }).in("id", paginationRows.map(row => row.id))).error, null);
+  const firstPage = await (await api(`/api/reports?q=${encodeURIComponent(paginationQuery)}`)).json();
+  const secondPage = await (await api(`/api/reports?q=${encodeURIComponent(paginationQuery)}&page=2`)).json();
+  assert.equal(firstPage.total, 13); assert.equal(firstPage.reports.length, 12); assert.equal(secondPage.reports.length, 1);
+  assert.equal(new Set([...firstPage.reports, ...secondPage.reports].map(row => row.id)).size, 13);
+  const beyondPage = await api(`/api/reports?q=${encodeURIComponent(paginationQuery)}&page=3`);
+  assert.equal(beyondPage.status, 200);
+  const beyond = await beyondPage.json(); assert.equal(beyond.total, 13); assert.deepEqual(beyond.reports, []);
+  const political = await (await api(`/api/reports?q=${encodeURIComponent(paginationQuery)}&category=politics`)).json();
+  assert.equal(political.total, 2);
+  assert.equal((await (await api(`/api/reports?q=${encodeURIComponent(paginationQuery)}&verdict=valid`)).json()).total, 0);
+  const noMatchesPage = await api(`/api/reports?q=${encodeURIComponent(paginationQuery)}&verdict=valid&page=2`);
+  assert.equal(noMatchesPage.status, 200); assert.equal((await noMatchesPage.json()).total, 0);
+  const listHtml = await (await api(`/reports?q=${encodeURIComponent(paginationQuery)}`)).text();
+  assert.match(listHtml, /Berikutnya/); assert.ok(listHtml.includes(paginationQuery));
+  assert.ok((await (await api("/")).text()).includes(paginationQuery));
+  if (checkScope) {
+    step = "INT-01 service-only RPC, concurrent lease and cached HTTP result without providers";
+    assert.ok(process.env.CHECK_HASH_SECRET && process.env.GEMINI_MODEL);
+    const submitted = { inputType: "text", input: `${prefix} Klaim fiktif untuk uji kontrak pemeriksaan publik.`, category: "education" };
+    const hashes = checkHashes(submitted, "fixture-subject", process.env.CHECK_HASH_SECRET, process.env.GEMINI_MODEL, new Date(), process.env.WEB_SEARCH_ENABLED === "true" ? "check-v2-tavily" : "check-v1");
+    const args = { p_scope: checkScope, p_key: hashes.key, p_subject: hashes.subject, p_url: false };
+    assert.ok((await guest.rpc("reserve_check", args)).error);
+    assert.ok((await memberDb.rpc("reserve_check", args)).error);
+    const reservations = await Promise.all([operator.rpc("reserve_check", args), operator.rpc("reserve_check", args)]);
+    assert.ok(reservations.every(value => !value.error));
+    assert.deepEqual(reservations.map(value => value.data.status).sort(), ["processing", "reserved"]);
+    const token = reservations.find(value => value.data.status === "reserved").data.token;
+    const guarded = { status: "draft_ready", analysisAvailable: true, sources: candidates, draft: {
+      claim: submitted.input, category: "education", verdict: "unverified", reviewStatus: "draft", summary: "Fixture hasil awal.", reason: "Bukti fiktif tidak memverifikasi klaim nyata.", limitations: ["Fixture terinjeksi khusus acceptance."], evidenceIds: [candidates[0].id],
+    } };
+    const completed = await operator.rpc("complete_check", { p_scope: checkScope, p_key: hashes.key, p_token: token,
+      p_document: { ...buildAnalysisDocument(guarded), limitations: guarded.draft.limitations }, p_input_type: "text", p_url: null, p_analysis: true });
+    assert.equal(completed.error, null); editorialReportIds.push(uuid(completed.data.id));
+    const cachedResponse = await api("/api/check", mutation(submitted));
+    assert.equal(cachedResponse.status, 200);
+    assert.match(cachedResponse.headers.get("cache-control"), /no-store/);
+    const checked = await cachedResponse.json(); assert.ok(parseCheckResult(checked));
+    assert.equal(checked.cached, true); assert.equal(checked.id, completed.data.id); assert.equal(checked.verdict, "unverified");
+    assert.equal((await api(`/api/reports/${checked.id}`)).status, 404);
+    assert.doesNotMatch(JSON.stringify(checked), /token|candidate_key|adminNotes|report_private/);
+    for (let index = 0; index < 3; index++) assert.equal((await api("/api/check", mutation(submitted))).status, 200);
+    // A sixth request from the same unknown-client bucket must stop before any model call.
+    assert.equal((await api("/api/check", mutation(submitted))).status, 200);
+    const limited = await api("/api/check", mutation(submitted));
+    assert.equal(limited.status, 429); assert.ok(limited.headers.get("retry-after"));
+    assert.equal((await api("/api/check", mutation({ ...submitted, reviewStatus: "published" }))).status, 400);
+    assert.equal((await api("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "x".repeat(22001) })).status, 413);
+    if (process.env.PUBLIC_URL_CHECK_ENABLED !== "true") {
+      const gated = await api("/api/check", mutation({ inputType: "url", input: "https://example.org/article", category: "education" }));
+      assert.equal(gated.status, 422); assert.equal((await gated.json()).error.code, "url_disabled");
+    }
+    const count = await adminDb.from("reports").select("id").eq("claim", submitted.input);
+    assert.equal(count.data.length, 1);
+  }
   step = "membership revocation and logout";
   sql(`delete from public.admin_users where user_id='${uuid(admin.id)}';`);
   assert.equal((await api("/api/admin/session", {}, adminCookie)).status, 403);
@@ -187,7 +293,7 @@ try {
   const logout = await api("/api/admin/logout", { method: "POST", headers: { origin: base } }, adminCookie);
   assert.equal(logout.status, 200);
   assert.ok(logout.headers.getSetCookie().some(value => /Max-Age=0/i.test(value)));
-  console.log("Integrasi lokal lulus: BE-03 CRUD/approval/retract/arsip/restore HTTP, concurrent edit 200/409, draft analisis atomik, provenance, Auth/RLS/CSRF, catatan privat, pencabutan izin dan logout. Tanpa provider live.");
+  console.log(`Integrasi lokal lulus: BE-03/FE-02 Auth/RLS/HTTP, pagination, privasi, approval dan retraction.${checkScope ? " INT-01 RPC service-only, concurrent lease, cache HTTP/result contract, satu draft/replay, 429/Retry-After dan batas body juga lulus." : " INT-01 khusus tidak dijalankan tanpa namespace fixture."} Tanpa provider live.`);
 } catch (error) {
   // Avoid logging SDK responses, tokens, keys, credentials, or request payloads.
   console.error(`Integrasi lokal gagal pada tahap: ${step}. Detail sensitif tidak dicetak.`);
@@ -195,6 +301,7 @@ try {
   process.exitCode = 1;
 } finally {
   try {
+    if (checkScope) sql(`delete from private.check_jobs where scope='${checkScope}'; delete from private.check_counters where scope='${checkScope}';`);
     for (const fixtureId of [reportId, ...editorialReportIds]) sql(`delete from public.report_audit where report_id='${uuid(fixtureId)}';
       delete from public.reports where id='${fixtureId}';
       delete from public.report_audit where detail->>'deleted_report_id'='${fixtureId}';`);

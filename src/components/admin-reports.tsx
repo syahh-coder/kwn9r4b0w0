@@ -7,7 +7,7 @@ import { categories, reviewStatuses, safeSourceUrl, verdicts } from "@/lib/repor
 import type { AuditEntry, EditorialSource, ReportDetail, ReportSummary } from "@/lib/reports/types";
 
 async function api(path: string, method = "GET", body?: unknown) {
-  const response = await fetch(path, { method, cache: "no-store", signal: AbortSignal.timeout(60000),
+  const response = await fetch(path, { method, cache: "no-store", signal: AbortSignal.timeout(95000),
     ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "Permintaan gagal. Coba lagi nanti.");
@@ -74,6 +74,8 @@ export function AdminReportEditor({ id }: { id?: string }) {
   function change<K extends keyof Fields>(key: K, value: Fields[K]) { setFields(previous => ({ ...previous, [key]: value })); setDirty(true); setReviewed(false); setMessage(""); }
   async function perform(action: string) {
     if (lock.current) return;
+    if (action === "reject" && !window.confirm("Arsipkan draft ini? Laporan tetap tersimpan dan dapat dikembalikan ke draft.")) return;
+    if (action === "retract" && !window.confirm("Tarik publikasi ini? Laporan akan disembunyikan dari publik dan dikembalikan ke draft.")) return;
     lock.current = true; setBusy(true); setError(""); setMessage("");
     try {
       if (action === "analyze") {
@@ -105,7 +107,7 @@ export function AdminReportEditor({ id }: { id?: string }) {
         {!id && <div className="notice"><p>Opsional: cari referensi dan buat draft dengan bantuan Gemini. Layanan analisis harus diaktifkan pengelola. Hasil otomatis tetap belum terverifikasi; proses ini menggunakan teks klaim dan kategori di atas.</p><button type="button" className="button subtle" disabled={fields.claim.trim().length < 20} onClick={() => void perform("analyze")}>Analisis teks menjadi draft</button></div>}
       </fieldset>
     </form>
-    {report && report.report_sources.some(source => source.candidate_key) && <section className="card form-card"><h2>Kandidat referensi hasil pencarian</h2><p className="hint">Metadata ini belum membuktikan kecocokan konteks. Sumber asli tidak diambil otomatis. Provenance dipertahankan saat draft diedit.</p>{report.report_sources.filter(source => source.candidate_key).map(source => <article className="admin-source" key={source.id}><h3>{safeSourceUrl(source.source_url) ? <a className="text-link" href={safeSourceUrl(source.source_url)!} target="_blank" rel="noopener noreferrer">{source.source_title} ↗</a> : source.source_title}</h3><p>{source.matched_claim}</p><p className="hint">{source.publisher} · Tanggal ulasan: {source.review_date ? timestamp(source.review_date) : "Tidak tersedia"}</p></article>)}</section>}
+    {report && report.report_sources.some(source => source.candidate_key) && <section className="card form-card"><h2>Kandidat referensi hasil pencarian</h2><p className="hint">Referensi dan kutipan membantu review, belum membuktikan kecocokan konteks. Provenance dipertahankan saat draft diedit.</p>{report.report_sources.filter(source => source.candidate_key).map(source => <article className="admin-source" key={source.id}><h3>{safeSourceUrl(source.source_url) ? <a className="text-link" href={safeSourceUrl(source.source_url)!} target="_blank" rel="noopener noreferrer">{source.source_title} ↗</a> : source.source_title}</h3><p>{source.matched_claim}</p><p className="hint">{source.publisher} · {source.evidence_kind === "claim_review_metadata" ? "Metadata ClaimReview; isi tidak diambil otomatis" : "Referensi web; periksa isi dan tanggal sumber"}</p>{source.excerpt && <blockquote className="source-excerpt">{source.excerpt}</blockquote>}<p className="hint">Tanggal terbit: {source.source_published_at ? timestamp(source.source_published_at) : "Tidak tersedia"} · Tanggal ulasan: {source.review_date ? timestamp(source.review_date) : "Tidak tersedia"}</p></article>)}</section>}
     {report && <section className="card form-card"><h2>Keputusan editorial</h2>{dirty && <p className="notice">Simpan perubahan sebelum mengubah status.</p>}<fieldset className="form-fields" disabled={busy || dirty}>
       {report.review_status === "draft" ? <><label className="admin-review-check"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} />Saya telah memeriksa sumber, klaim, waktu, lokasi dan konteks serta menyetujui penjelasan dan hasil laporan ini.</label><div className="admin-toolbar"><button className="button primary" disabled={!reviewed} onClick={() => void perform("publish")}>Setujui dan publikasikan</button><button className="button subtle" onClick={() => void perform("reject")}>Arsipkan draft</button></div><p className="hint">Arsip menyembunyikan laporan dan mempertahankan audit. Laporan dapat dikembalikan ke draft.</p></> : <button className="button subtle" onClick={() => void perform(report.review_status === "published" ? "retract" : "restore")}>{report.review_status === "published" ? "Tarik publikasi ke draft" : "Kembalikan ke draft"}</button>}
     </fieldset></section>}

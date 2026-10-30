@@ -92,7 +92,7 @@ export function createEvidenceAnalyzer({ enabled = false, apiKey, model, timeout
       const proposedAnalysis = validateAnalysisOutput(response?.text, claim, category, ids);
       // All currently supported evidence is metadata-only. There is no trusted
       // contextual entailment gate yet, so NONE can authorize valid/hoax.
-      const safeDraft = draft(claim, category, "Kandidat referensi ditemukan, tetapi baru berupa metadata ulasan. Isi bukti dan kecocokan konteks belum dikonfirmasi.", proposedAnalysis.evidenceIds);
+      const safeDraft = draft(claim, category, "Kandidat referensi ditemukan, tetapi tahap ini hanya memakai metadata sumber. Isi bukti dan kecocokan konteks belum dikonfirmasi.", proposedAnalysis.evidenceIds);
       return { status: "draft_ready", analysisAvailable: true, draft: safeDraft, proposedAnalysis,
         policy: { verdictForced: proposedAnalysis.verdict !== "unverified", reason: "metadata_only" } };
     } catch (error) {

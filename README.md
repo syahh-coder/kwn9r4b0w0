@@ -2,23 +2,25 @@
 
 **Project kuliah Kewarganegaraan: portal edukasi dan verifikasi klaim tentang Pendidikan, Politik, dan Konservasi Alam.**
 
-> Status: **starter scaffold + dokumentasi + backlog**, BUKAN situs fact-check yang sudah berfungsi. Endpoint `/api/check` saat ini memvalidasi bentuk input dan mengembalikan `unverified` sebagai hasil **belum diperiksa**, bukan vonis benar/hoaks. Fetch URL, pencarian bukti, Gemini, Supabase, login admin, dan publishing adalah task implementasi berikutnya. Tidak ada API key disertakan.
+> Status implementasi lokal: Home/form, safe URL ingestion, metadata Google Fact Check, pencarian/baca sumber Tavily, analisis Gemini server, draft di Supabase, laporan publik dan admin editorial. Mode web memerlukan flag/key server; [konfigurasi, batas dan bukti](docs/22_TAVILY_EVIDENCE.md). Semua hasil otomatis **unverified/draft**; hanya admin yang dapat menerbitkan laporan setelah review. Status terbaru ada di [TASKS.md](TASKS.md). Belum deploy cloud; key tidak disertakan.
 
 ## Mulai cepat
-1. Ekstrak zip, buka folder `02_CEKFAKTA_AGENTIC_WORKSPACE` di IDE.
-2. Install **Node.js 20.9+** dan npm, lalu: `npm install` → `npm run dev`.
-3. Buka `http://localhost:3000`. UI starter dan API health akan berjalan tanpa API key; belum ada validasi fakta nyata.
-4. Duplikasi `.env.example` menjadi `.env.local`, isi credential sendiri saat akan mengaktifkan fitur.
-5. Ke agent di IDE, paste isi `prompts/00_EXECUTE_MVP.md`. Instruksikan agent jalankan fase 1, verifikasi, lanjut sesuai urutan backlog.
+1. Buka repository di IDE, gunakan Node.js yang memenuhi `package.json` dan `npm.cmd ci` untuk instalasi sesuai lockfile.
+2. Untuk instalasi baru, salin `.env.example` ke `.env.local` dan isi konfigurasi. **Pertahankan `.env.local` yang sudah ada**. Panduan [admin](docs/11_ADMIN_SETUP.md) dan [check](docs/19_CHECK_INTEGRATION.md).
+3. Nyalakan Docker Desktop, lalu `npx.cmd supabase start`. Data dan admin lokal bertahan; tidak perlu reset atau membuat admin ulang.
+4. Jalankan `npm.cmd run dev` dan buka URL pada terminal. UI bisa dibuka tanpa provider, tetapi check yang belum dikonfigurasi memberi error layanan yang jujur.
+5. Panduan pengujian, demo dan batas rilis: [QA lokal](docs/20_LOCAL_QA_RELEASE.md). `npm.cmd run verify` menjalankan lint/typecheck/tests/build; `npm.cmd run test:browser` menjalankan acceptance lokal dan Chromium.
+
+Development memakai Webpack untuk menghindari loop hot reload Turbopack yang ditemukan di workspace Windows ini. Jika port 3000 ditolak, jalankan `npm.cmd run dev -- --port 43001`. Dengan server aktif, `npm.cmd run test:dev` menguji browser tidak terus reload saat idle.
 
 ## Repo map
 - `AGENTS.md` = kontrak utama AI agent lintas IDE; `AI.md` = peta konteks & prompt.
 - `.cursor/rules/*.mdc`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` = dukungan multi-agent/IDE.
 - `docs/` = PRD, architecture, validation policy, data source, API, DB, security, testing, demo.
 - `TASKS.md` & `docs/TEAM.md` = owner, dependensi, bukti selesai.
-- `src/app` = Next.js App Router (halaman & route handler starter).
-- `supabase/migrations/` = draft struktur DB dan RLS yang harus direview sebelum diterapkan.
-- `tests/` = test awal Node test runner, tanpa memerlukan layanan eksternal.
+- `src/app` = Next.js App Router: halaman publik/admin serta route handlers.
+- `supabase/migrations/` = migrasi 0001–0007 untuk DB, RLS, editorial, shared check pipeline dan provenance/budget web; ditinjau sebelum diterapkan ke lingkungan lain.
+- `tests/` = unit/adversarial/SQL dengan Node test runner; `scripts/` = acceptance Supabase/HTTP/browser dan probe provider opt-in.
 - `.vscode/` = task run dev / full checks di VS Code dan IDE kompatibel; `scripts/smoke.mjs` = smoke test terhadap server lokal.
 
 ## Scope / kebijakan produk
@@ -29,6 +31,6 @@
 - Politik adalah topik berisiko tinggi: hindari putusan otomotis tanpa bukti dan admin review.
 
 ## Tech decisions
-Next.js App Router + TypeScript + CSS starter → Next.js Route Handlers → Gemini `@google/genai` (server only, phase 3) → Supabase Postgres/Auth (phase 2) → hosting Vercel (opsional). Package minimal agar instalasi pertama tidak rumit; upgrade dependencies setelah audit.
+Next.js App Router + TypeScript + shared CSS → server Route Handlers → Gemini `@google/genai` + Google Fact Check + Tavily opsional → Supabase Postgres/Auth. Cache, lease dan budget bersama memakai PostgreSQL; deployment Vercel/Supabase cloud tetap tahap terpisah. [Harga pencarian/token](docs/21_WEB_SEARCH_PRICING.md); agen tidak mengaktifkan paid plan.
 
-**Jangan gunakan report demo sebagai fakta publik.** Saat ini daftar report publik menampilkan empty state sampai query DB/publikasi diimplementasikan.
+**Jangan gunakan report demo sebagai fakta publik.** Daftar laporan hanya membaca data published; kosong jika belum ada persetujuan admin. Tidak ada cron penarik semua berita setiap hari: pipeline berjalan saat pengguna mengirim input, kemudian memakai cache untuk input identik.

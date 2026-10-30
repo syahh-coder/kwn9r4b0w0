@@ -3,17 +3,24 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "test": "node --test tests/*.test.mjs",
     "test:db": "node --test tests/database-rls.test.mjs",
     "test:local": "node scripts/test-supabase-local.mjs",
+    "test:browser": "node scripts/test-browser-local.mjs",
+    "test:dev": "node scripts/test-dev-local.mjs",
+    "test:web-live": "node scripts/test-web-local.mjs",
     "check:gemini": "node scripts/check-gemini.mjs",
     "test:gemini": "node scripts/test-gemini-live.mjs",
     "test:factcheck": "node scripts/test-factcheck-live.mjs",
+    "setup:local-check": "node scripts/setup-local-check.mjs",
+    "setup:local-web-search": "node scripts/setup-web-search-local.mjs",
+    "test:check-live": "node scripts/test-check-live.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
@@ -28,12 +35,14 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@electric-sql/pglite": "^0.5.11",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.0.0",
+    "playwright": "^1.64.1",
     "supabase": "^2.122.0",
     "typescript": "^5.9.0"
   },

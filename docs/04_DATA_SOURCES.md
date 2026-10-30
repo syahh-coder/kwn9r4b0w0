@@ -1,5 +1,9 @@
 # Data & fact-check retrieval research (owner: Joshev)
 
+## Pembaruan DATA-04 — 31 Oktober 2026
+
+Pengguna memilih Tavily Search/Extract basic sebagai perluasan ke sumber web, terpisah dari metadata Google Fact Check. Gemini menyusun query dan membandingkan kalimat sumber; tidak menjadi penyedia fakta. Tanggal tidak diketahui tetap null, hash/span bukan bukti semantic truth, semua hasil draft/unverified sebelum admin. Tidak memakai Search Grounding untuk crawler/report DB karena batas terms. Konfigurasi/keamanan/status acceptance: [DATA-04](22_TAVILY_EVIDENCE.md), [harga/terms resmi](21_WEB_SEARCH_PRICING.md), TASKS.md.
+
 ## Riset DATA-01 — diperiksa 24 Oktober 2026
 
 Login admin telah dikonfirmasi pengguna berhasil. Tahap berikutnya adalah sumber bukti, bukan klasifikasi Gemini tanpa referensi.

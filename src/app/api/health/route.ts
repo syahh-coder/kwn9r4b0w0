@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 export async function GET() {
-  return NextResponse.json({ ok: true, service: "cekfakta", mode: "scaffold" }, {
+  return NextResponse.json({ ok: true, service: "cekfakta", mode: "integrated" }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

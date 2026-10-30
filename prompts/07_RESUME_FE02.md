@@ -1,5 +1,7 @@
 # Lanjutkan CekFakta setelah BE-03
 
+> Riwayat: FE-02 sudah selesai pada 30 Oktober 2026. Jangan mengulang implementasi di bawah. Baca status terbaru TASKS.md, docs/16_SESSION_HANDOFF.md dan docs/18_PUBLIC_REPORTS.md; titik lanjut sekarang INT-01. Isi berikut dipertahankan sebagai rekaman prompt awal FE-02.
+
 Lanjutkan project pada workspace ini dari state tersimpan. Baca AGENTS.md, AI.md, TASKS.md, docs/TEAM.md dan docs/16_SESSION_HANDOFF.md terlebih dahulu, lalu dokumentasi relevan sesuai read order dan DESIGN.md. Gunakan docs/15_ADMIN_REPORTS.md untuk kontrak BE-03. Jangan ulang planning atau membuat ulang fitur yang sudah tersedia.
 
 BE-03 sudah DONE dan migrasi 0001–0004 terpasang di Supabase lokal. Login/admin CRUD/approval/retract/arsip/restore serta penyimpanan draft/sumber/catatan atomik sudah diuji. Hasil terakhir: lint/typecheck/build, 82 tes, acceptance HTTP Auth/PostgREST, smoke dan scan key client lulus. Endpoint analisis live serta review visual browser belum diuji. /check masih validation-only dan /reports belum membaca database.

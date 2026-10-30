@@ -1,30 +1,21 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { isSameOrigin } from "@/lib/admin-request.mjs";
+import { JsonInputError, readBoundedJson } from "@/lib/bounded-json.mjs";
 
 const fail = (status: number, code: string, message: string) => NextResponse.json({ error: { code, message } }, { status, headers: { "Cache-Control": "no-store" } });
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return fail(403, "forbidden", "Asal permintaan tidak diizinkan.");
-  if (!request.headers.get("content-type")?.startsWith("application/json")) return fail(415, "invalid_input", "Gunakan format JSON.");
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") return fail(415, "invalid_input", "Gunakan format JSON.");
   if (!hasSupabaseConfig()) return fail(503, "service_unavailable", "Login admin belum dikonfigurasi.");
-  // Read a bounded stream so a missing or forged Content-Length cannot bypass limits.
-  const reader = request.body?.getReader();
-  if (!reader) return fail(400, "invalid_input", "Isi email dan kata sandi.");
-  let raw = "";
-  let size = 0;
-  const decoder = new TextDecoder();
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 4096) return fail(413, "invalid_input", "Data login terlalu besar.");
-      raw += decoder.decode(value, { stream: true });
-    }
-    raw += decoder.decode();
-  } finally { void reader.cancel().catch(() => undefined); }
   let body;
-  try { body = JSON.parse(raw); } catch { return fail(400, "invalid_input", "Data login tidak valid."); }
+  try {
+    body = await readBoundedJson(request, { maxBytes: 4096, timeoutMs: 5000 });
+  } catch (error) {
+    if (error instanceof JsonInputError && error.code === "payload_too_large") return fail(413, "invalid_input", "Data login terlalu besar.");
+    if (error instanceof JsonInputError && error.code === "request_timeout") return fail(408, "request_timeout", "Waktu pengiriman login habis.");
+    return fail(400, "invalid_input", "Data login tidak valid.");
+  }
   if (!body || typeof body.email !== "string" || typeof body.password !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()) || body.email.length > 254 || body.password.length < 1 || body.password.length > 1024) return fail(400, "invalid_input", "Isi email dan kata sandi yang valid.");
   try {
     const supabase = await createSupabaseServerClient();

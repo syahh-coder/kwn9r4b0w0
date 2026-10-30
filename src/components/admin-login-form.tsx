@@ -13,7 +13,7 @@ export function AdminLoginForm() {
     const fields = new FormData(event.currentTarget);
     setPending(true); setError("");
     try {
-      const response = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: fields.get("email"), password: fields.get("password") }) });
+      const response = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: fields.get("email"), password: fields.get("password") }), signal: AbortSignal.timeout(15000) });
       if (!response.ok) { const body = await response.json(); setError(body.error?.message || "Login belum berhasil."); return; }
       router.replace("/admin"); router.refresh();
     } catch { setError("Layanan belum dapat dihubungi. Silakan coba lagi."); }
@@ -37,7 +37,7 @@ export function AdminLogoutButton() {
   async function logout() {
     setPending(true); setError("");
     try {
-      const response = await fetch("/api/admin/logout", { method: "POST" });
+      const response = await fetch("/api/admin/logout", { method: "POST", signal: AbortSignal.timeout(15000) });
       if (!response.ok) { setError("Logout belum berhasil. Silakan coba lagi."); return; }
       router.replace("/admin/login"); router.refresh();
     } catch { setError("Layanan belum dapat dihubungi."); }

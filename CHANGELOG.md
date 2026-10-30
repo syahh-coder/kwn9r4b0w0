@@ -1,5 +1,46 @@
 # Changelog
 
+## DATA-05 — perbaikan pilihan kutipan pada input pengguna
+- Dua request pengguna masih gagal invalid_quote. Ubah schema rentang ID kalimat global menjadi varian per sumber dan enum kalimat quotable milik sumber itu; dokumen tanpa kalimat layak hanya boleh unclear/null. Guard backend tidak dilonggarkan.
+- Tambah regresi schema sumber/navigasi/kalimat tak layak serta contoh input di docs/22. Uji langsung web pengguna PASS HTTP 200, 3 sumber/3 quote/unverified/draft; replay formulir mobile cache ID sama/3 quote/tanpa overflow PASS. Draft nyata disimpan untuk admin, tidak publish. Status checks final di TASKS.md.
+- Verify akhir PASS lint/typecheck/117 unit+SQL/build; server Webpack direstart setelah build pada 43001. Tidak mengubah billing/key/budget/admin/cloud. Teks gagal pengguna belum diberikan, tidak mengklaim reproduksi persis input tersebut.
+
+## DATA-04 — pencarian Tavily dan kutipan sumber
+- Pengguna memilih Tavily dan menyediakan key lokal. Tambah adapter Search/Extract basic endpoint tetap, bounded body/deadline, maksimal 3 sumber dan safe-fetch DATA-02; metadata tidak disamarkan sebagai isi artikel. Gemini membuat query dengan tahun asli, lalu membandingkan kalimat sumber.
+- Schema wajib satu comparison per dokumen; model memilih ID kalimat asli, server mengambil quote dan memvalidasi span/hash/keunikan. Kegagalan JSON/quote tetap ditolak; diagnosis log hanya label tetap. Semua hasil unverified/draft, publish tetap admin.
+- Migrasi lokal 0006/0007 menambah provenance/constraint/cache preview/RPC reservasi web service-only per lease; 2 kredit/check dan 20 kredit/hari. Tidak reset data/admin. Cache policy web baru tanpa reset bucket subject/global.
+- UI publik/admin/detail menampilkan jenis sumber, quote dan tanggal yang benar-benar tersedia. Tambah setup flag lokal, acceptance live/cache/browser dan docs/21–22 untuk harga/terms/batas. Tidak menyalin artikel penuh ke DB atau mengaktifkan Grounding/PAYG/billing/deploy.
+- Verify PASS 116 tests; test:web-live final PASS 3 sumber/3 quote/draft/cache/404/mobile/axe dan cleanup. Bukti/regresi/aktivasi akhir di TASKS.md/docs/09; tidak mengklaim verdict PISA atau semua sumber primer.
+
+## Riwayat awal DATA-04 — riset perluasan pencarian dan biaya
+- Catat harga resmi token Gemini/Search Grounding/billing serta alternatif retrieval Tavily di docs/21, termasuk perhitungan nominal per 1.000/sejuta pemeriksaan dengan asumsi token eksplisit.
+- Probe Grounding yang diizinkan pengguna ditolak 429 kuota/free tier. Pembacaan terms lengkap mengoreksi saran awal: Grounding tidak disambungkan sebagai crawler/cache/database report publik. Pengguna diminta menunda aktivasi billing dan memilih alternatif retrieval.
+- DATA-04 tetap IN_PROGRESS menunggu pilihan provider/credential; belum mengubah pipeline/DB/env atau mengaktifkan paid plan. Tidak mengklaim fitur web search selesai, mengubah data pengguna, commit/push atau deploy.
+
+## DEV-01 — perbaikan loading/refresh development
+- Reproduksi loop HMR Turbopack di Windows: 36 navigasi browser/12 detik tanpa perubahan source. Default dev menggunakan Webpack; stack dan production build tetap sama.
+- Tambah test:dev untuk stabilitas idle, runtime dan interaksi browser. PASS sebelum/sesudah build: 0 reload/restart selama idle 12 detik. verify lint/typecheck/103 tests/build PASS. Dokumen membedakan port internal Docker 3000 dari web host 43001 dan menjelaskan mengapa QA production sebelumnya tidak menangkap bug dev.
+- Server dev diperbaiki dan dibiarkan aktif pada 43001. Tidak mengubah container/data/admin/key, memanggil provider, commit/push atau deploy.
+
+## 31 Oktober 2026 — QA-01 dan FE-01 selesai lokal
+- Tambah acceptance Playwright Chromium/axe, lima viewport, keyboard/menu/reduced motion, form invalid/loading/error/cache dan admin editorial/pencarian/detail/escaping/konfirmasi/logout; otomatis menjalankan regresi HTTP/Auth/RLS/cache dan smoke. Fixture lokal sementara dan server tes dibersihkan; screenshot di artifacts/qa diabaikan Git dan di-review langsung.
+- Perbaiki kontras heading selama animasi dengan gerak tanpa fade; tambah konfirmasi arsip/retract, login bounded UTF-8 4 KB/5 detik, deadline UI auth dan header keamanan/CSP terbatas tanpa klaim strict script policy.
+- Siapkan npm verify dan task IDE Windows, perbarui dokumentasi scaffold ke status terintegrasi, demo dan prosedur/gate rilis/rollback/retensi di docs/20. Playwright/axe hanya dev dependencies, tidak mengganti stack.
+- Lint/typecheck/build/103 tests/test:local/smoke/test:browser PASS, audit dependency runtime 0 vulnerabilities; tanpa panggilan provider baru/cloud/deploy/reset/commit/push. FE-01/QA-01 DONE lokal; RELEASE-01 baru persiapan dokumen lokal, staging/retensi produksi/header proxy/transport hosting belum diuji.
+
+## 31 Oktober 2026 — INT-01 dan DATA-03 selesai lokal
+- Hubungkan form Home/check dan admin analyze ke ekstraksi Gemini, Fact Check metadata, analisis dan draft unverified atomik. Hasil/sumber/batasan/pending/error/cache ditampilkan dengan kontrak tervalidasi; tidak ada mock atau auto-publish.
+- Migrasi 0005: private shared counters/jobs, RPC service-only untuk budget/rate/concurrency/lease/cache; HMAC input/subject, token lease stale-safe, report version invalidation dan commit report/notes/provenance/preview atomik. Worker credential server-only; admin CRUD/publish tetap JWT user/RLS.
+- Tambahkan setup lokal (CLI key backend/hash secret, aktivasi flag tanpa mengganti key/model provider), opt-in live probe teks/URL, 14 tes tambahan (103 total), perluas acceptance HTTP shared cache/429. Docker awalnya mati dinyalakan kembali, migrasi lokal tanpa reset; URL lokal diaktifkan setelah guard/cap/rate/TLS teruji. Cloud/billing tidak diubah.
+- Lint/typecheck/build/103 tests/test:local/smoke lulus. Live teks: 3 kandidat, analisis/draft tersimpan, replay cached, draft publik 404; URL: private IP ditolak, example.com mencapai ekstraksi lalu no_factual_claim tanpa draft. Fixture/probe dibersihkan. Key backend/provider/hash secret tidak ada di bundle client, env tetap ignored.
+- Smoke tidak mengirim valid input/provider request; health mode integrated. Review visual/browser, header proxy dan transport deployment serta factual accuracy tetap belum dinyatakan lulus; berikutnya QA-01.
+
+## 30 Oktober 2026 — FE-02 laporan publik dari Supabase
+- Hubungkan daftar/detail laporan dan tiga laporan terbaru Home ke Supabase anon; tambah GET /api/reports dan /api/reports/[id] dengan projection publik/published-only. Sesi admin tidak ikut digunakan pada pembacaan publik.
+- Implementasikan pencarian literal klaim, filter kategori/verdict, pagination 12 dengan tiebreaker ID, sumber/tanggal, label verdict/editorial, loading/empty/error/404 yang jujur. Data baru setelah retraction tidak disajikan dari cache publik.
+- Perbaiki status detail not-found 200 akibat loading bersama dan penanganan range kosong PostgREST 416. Tambah 7 unit test dan perluas acceptance lokal untuk public API/SSR/Home, privasi saat cookie admin, publication/retraction, search/filter/pagination 12+1/range kosong.
+- Lint/typecheck/build, 89 tests, acceptance Auth/PostgREST/HTTP dan smoke lulus; fixture dibersihkan; key provider tidak ditemukan dalam bundle client. Tidak memanggil provider live, memigrasi DB, mengubah env atau deploy. Review visual browser belum diuji. /check masih validation-only; berikutnya INT-01.
+
 ## 24 Oktober 2026 — BE-03 pengelolaan laporan admin
 - Implementasikan antrean/detail/editor admin, sumber editorial, catatan privat, persetujuan publikasi, tarik ke draft, arsip (soft delete rejected) dan restore; audit ditampilkan dari database. Form memiliki pending/error/empty state dan konflik versi; laporan published tidak dapat diedit sebelum ditarik.
 - Tambahkan RPC SECURITY INVOKER save_report_draft/admin_report_action pada migrasi 0004. Report/catatan/sumber/provenance tersimpan atomik; optimistic version dan row lock mencegah saling timpa. Migrasi diterapkan lokal tanpa reset/cloud.

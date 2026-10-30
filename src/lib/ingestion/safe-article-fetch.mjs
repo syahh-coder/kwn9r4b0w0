@@ -64,7 +64,7 @@ export function requestPinned(url, target, { signal, maxBytes = MAX_BYTES, reque
   });
 }
 
-/** Server-only Node transport. No public URL ingestion until shared rate-limit/review. */
+/** Server-only Node transport; callers must reserve shared quota before URL retrieval. */
 export function createArticleFetcher({ resolver = lookup, transport = requestPinned, timeoutMs = 8000, maxBytes = MAX_BYTES, maxRedirects = 3 } = {}) {
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 8000 || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_BYTES || !Number.isInteger(maxRedirects) || maxRedirects < 0 || maxRedirects > 3) throw new Error("invalid_fetch_limits");
   return async function fetchArticle(input) {

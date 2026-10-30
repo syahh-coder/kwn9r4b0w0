@@ -8,7 +8,7 @@ npm install
 npm run dev
 # buka http://localhost:3000
 ```
-Cek API: `http://localhost:3000/api/health`. Di terminal kedua jalankan `npm run smoke` untuk menguji health & input-validation-only. VS Code memiliki task `CekFakta: Dev Server` dan `CekFakta: Full Checks`.
+Cek API: `http://localhost:3000/api/health` (liveness, bukan kesiapan provider). Di terminal kedua jalankan `npm.cmd run smoke` untuk menguji health dan penolakan input tanpa kuota provider. VS Code memiliki task `CekFakta: Dev Server`, `CekFakta: Full Checks` dan `CekFakta: Browser QA`. Untuk workspace yang sudah disiapkan, nyalakan Docker Desktop lalu `npx.cmd supabase start`; jangan reset DB atau menimpa `.env.local`. Panduan terbaru: [QA lokal](docs/20_LOCAL_QA_RELEASE.md).
 
 ### 2. Tempel prompt awal di AI agent
 """
@@ -24,8 +24,9 @@ Update TASKS.md beserta command dan hasil nyata.
 - `.env.local` (copy dari `.env.example`, tidak di-commit).
 - `GEMINI_API_KEY`: buat sendiri di https://aistudio.google.com/api-keys.
 - Supabase URL + anon key setelah project database dibuat. Admin harus via Supabase Auth dan RLS, bukan password hardcoded.
-- Pastikan tidak pernah menaruh kunci di NEXT_PUBLIC_ atau frontend.
+- Mode pencarian web memakai `TAVILY_API_KEY` dan `WEB_SEARCH_ENABLED=true`; [panduan DATA-04](docs/22_TAVILY_EVIDENCE.md). Harga dan batas ada di docs/21; tidak perlu mengaktifkan PAYG untuk mencoba kredit gratis yang masih tersedia.
+- Hanya URL Supabase dan anon/publishable key yang boleh publik. Gemini, Tavily, Fact Check, key backend Supabase serta hash secret harus server-only, tanpa `NEXT_PUBLIC_`.
 
 ### 4. Setelah fitur dibangun
-- Jalankan 12 acceptance cases di `docs/09_TEST_PLAN.md`.
+- Jalankan acceptance cases di `docs/09_TEST_PLAN.md` dan `npm.cmd run test:browser`.
 - Tulis hasil pengujian sesungguhnya, lalu demo via `docs/10_DEMO_SCRIPT.md`.

@@ -4,14 +4,23 @@
     {
       "label": "CekFakta: Dev Server",
       "type": "shell",
-      "command": "npm run dev",
+      "command": "npm.cmd",
+      "args": ["run", "dev"],
       "isBackground": true,
       "problemMatcher": []
     },
     {
       "label": "CekFakta: Full Checks",
       "type": "shell",
-      "command": "npm run lint && npm run typecheck && npm test && npm run build",
+      "command": "npm.cmd",
+      "args": ["run", "verify"],
+      "problemMatcher": []
+    },
+    {
+      "label": "CekFakta: Browser QA",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "test:browser"],
       "problemMatcher": []
     }
   ]
